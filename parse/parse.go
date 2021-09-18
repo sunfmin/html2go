@@ -122,9 +122,9 @@ func (fc *funcCall) MarshalCode(methodNames []string, pkg string) (r []byte) {
 					panic(err)
 				}
 			}
-			_, _ = fmt.Fprintf(buf, "%s(%#+v)", attFuncName, val)
+			_, _ = fmt.Fprintf(buf, "%s(%s)", attFuncName, normalizeGoString(val))
 		} else {
-			_, _ = fmt.Fprintf(buf, "Attr(%#+v, %#+v)", att.Key, att.Val)
+			_, _ = fmt.Fprintf(buf, "Attr(%#+v, %s)", expandAlpineKey(att.Key), normalizeGoString(att.Val))
 		}
 	}
 
@@ -140,6 +140,34 @@ func (fc *funcCall) MarshalCode(methodNames []string, pkg string) (r []byte) {
 	buf.WriteString(",\n")
 
 	return buf.Bytes()
+}
+
+func expandAlpineKey(key string) (r string) {
+	if strings.Index(key, ":") == 0 {
+		return fmt.Sprintf("x-bind%s", key)
+	}
+
+	if strings.Index(key, "@") == 0 {
+		return fmt.Sprintf("x-on%s", key)
+	}
+	return key
+}
+
+func normalizeGoString(val interface{}) (r interface{}) {
+	strval, ok := val.(string)
+	if !ok {
+		return fmt.Sprintf("%#+v", val)
+	}
+
+	if strings.Contains(strval, "'") {
+		strval = strings.ReplaceAll(strval, "'", "\"")
+	}
+	if strings.ContainsAny(strval, "\n\t\"") && !strings.Contains(strval, "`") {
+		strval = fmt.Sprintf("`%s`", strval)
+		return strval
+	}
+
+	return fmt.Sprintf("%#+v", strval)
 }
 
 const intAttr = "|TabIndex|"
