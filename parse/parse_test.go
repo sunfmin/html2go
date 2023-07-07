@@ -10,10 +10,11 @@ import (
 
 func TestAll(t *testing.T) {
 	var cases = []struct {
-		name   string
-		pkg    string
-		html   string
-		gocode string
+		name         string
+		pkg          string
+		childrenMode bool
+		html         string
+		gocode       string
 	}{
 		{
 			name: "normal",
@@ -414,11 +415,108 @@ var n = Body(
 )
 `,
 		},
+
+		{
+			name:         "children mode",
+			childrenMode: true,
+			html: `
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <b>b string</b>
+  <a class="navbar-brand" href="#">Navbar</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Features</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Pricing</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+`,
+			gocode: `package hello
+
+var n = Body().
+	Children(
+		Nav().Class("navbar navbar-expand-lg navbar-light bg-light").
+			Children(
+				B("b string"),
+				A().Class("navbar-brand").
+					Href("#").
+					Children(
+						Text("Navbar"),
+					),
+				Button("").Class("navbar-toggler").
+					Type("button").
+					Attr("data-toggle", "collapse").
+					Attr("data-target", "#navbarNav").
+					Attr("aria-controls", "navbarNav").
+					Attr("aria-expanded", "false").
+					Attr("aria-label", "Toggle navigation").
+					Children(
+						Span("").Class("navbar-toggler-icon"),
+					),
+				Div().Class("collapse navbar-collapse").
+					Id("navbarNav").
+					Children(
+						Ul().Class("navbar-nav").
+							Children(
+								Li().Class("nav-item active").
+									Children(
+										A().Class("nav-link").
+											Href("#").
+											Children(
+												Text("Home"),
+												Span("(current)").Class("sr-only"),
+											),
+									),
+								Li().Class("nav-item").
+									Children(
+										A().Class("nav-link").
+											Href("#").
+											Children(
+												Text("Features"),
+											),
+									),
+								Li().Class("nav-item").
+									Children(
+										A().Class("nav-link").
+											Href("#").
+											Children(
+												Text("Pricing"),
+											),
+									),
+								Li().Class("nav-item").
+									Children(
+										A().Class("nav-link disabled").
+											Href("#").
+											TabIndex(-1).
+											Attr("aria-disabled", "true").
+											Children(
+												Text("Disabled"),
+											),
+									),
+							),
+					),
+			),
+	)
+`,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			gocode := parse.GenerateHTMLGo(c.pkg, strings.NewReader(
+			gocode := parse.GenerateHTMLGo(c.pkg, c.childrenMode, strings.NewReader(
 				strings.ReplaceAll(c.html, "|backquote|", "`"),
 			))
 			diff := testingutils.PrettyJsonDiff(strings.ReplaceAll(c.gocode, "|backquote|", "`"), gocode)
