@@ -139,8 +139,7 @@ func (fc *funcCall) MarshalCode(methodNames []string, pkg string, childrenMode b
 	}
 
 	if needWriteChilren && len(fc.Children) > 0 {
-		buf.WriteString(".\n")
-		buf.WriteString("Children(\n")
+		buf.WriteString(".Children(\n")
 		for _, c := range fc.Children {
 			buf.Write(c.MarshalCode(methodNames, pkg, childrenMode))
 		}
