@@ -17,7 +17,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func GenerateHTMLGo(pkg string, htmlCode io.Reader) string {
+func GenerateHTMLGo(pkg string, childrenMode bool, htmlCode io.Reader) string {
 	n, err := html.Parse(htmlCode)
 	if err != nil {
 		panic(err)
@@ -26,7 +26,7 @@ func GenerateHTMLGo(pkg string, htmlCode io.Reader) string {
 	fc := &funcCall{}
 	walk(n.FirstChild.FirstChild.NextSibling, fc, methodNames)
 
-	code := string(fc.MarshalCode(methodNames, pkg))
+	code := string(fc.MarshalCode(methodNames, pkg, childrenMode))
 	code = strings.TrimRight(code, ",\n")
 
 	fset := token.NewFileSet()
@@ -74,7 +74,7 @@ type funcCall struct {
 	Attrs    []html.Attribute
 }
 
-func (fc *funcCall) MarshalCode(methodNames []string, pkg string) (r []byte) {
+func (fc *funcCall) MarshalCode(methodNames []string, pkg string, childrenMode bool) (r []byte) {
 
 	buf := bytes.NewBuffer(nil)
 
@@ -90,14 +90,24 @@ func (fc *funcCall) MarshalCode(methodNames []string, pkg string) (r []byte) {
 	_, _ = fmt.Fprintf(buf, "%s%s(%s", pkgDot(pkg), strcase.ToCamel(fc.Name), newline)
 
 	needWriteChilren := false
-	if fc.TakeText && len(fc.Children) == 1 && len(fc.Children[0].Text) > 0 {
-		buf.WriteString(fmt.Sprintf("%#+v", fc.Children[0].Text))
-	} else if fc.TakeText {
-		buf.WriteString(`""`)
+	if childrenMode {
 		needWriteChilren = true
+		if fc.TakeText && len(fc.Children) == 1 && len(fc.Children[0].Text) > 0 {
+			buf.WriteString(fmt.Sprintf("%#+v", fc.Children[0].Text))
+			needWriteChilren = false
+		} else if fc.TakeText {
+			buf.WriteString(`""`)
+		}
 	} else {
-		for _, c := range fc.Children {
-			buf.Write(c.MarshalCode(methodNames, pkg))
+		if fc.TakeText && len(fc.Children) == 1 && len(fc.Children[0].Text) > 0 {
+			buf.WriteString(fmt.Sprintf("%#+v", fc.Children[0].Text))
+		} else if fc.TakeText {
+			buf.WriteString(`""`)
+			needWriteChilren = true
+		} else {
+			for _, c := range fc.Children {
+				buf.Write(c.MarshalCode(methodNames, pkg, childrenMode))
+			}
 		}
 	}
 
@@ -129,10 +139,9 @@ func (fc *funcCall) MarshalCode(methodNames []string, pkg string) (r []byte) {
 	}
 
 	if needWriteChilren && len(fc.Children) > 0 {
-		buf.WriteString(".\n")
-		buf.WriteString("Children(\n")
+		buf.WriteString(".Children(\n")
 		for _, c := range fc.Children {
-			buf.Write(c.MarshalCode(methodNames, pkg))
+			buf.Write(c.MarshalCode(methodNames, pkg, childrenMode))
 		}
 		buf.WriteString(")")
 	}
